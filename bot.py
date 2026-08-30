@@ -83,6 +83,7 @@ def add_place():
     data.setdefault("places", []).append(new_place)
     save_data(data)
     return jsonify({"ok": True, "place": new_place})
+
 @app.route("/api/places/<int:place_id>/like", methods=["POST"])
 def like_place(place_id):
     data = load_data()
@@ -100,7 +101,8 @@ def like_place(place_id):
         data["places"][idx] = place
     save_data(data)
     return jsonify({"ok": True, "likes": place["likes"]})
-    @app.route("/api/comments/<int:place_id>", methods=["GET"])
+
+@app.route("/api/comments/<int:place_id>", methods=["GET"])
 def get_comments(place_id):
     data = load_data()
     comments = data.get("comments", {}).get(str(place_id), [])
