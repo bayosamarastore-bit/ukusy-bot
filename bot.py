@@ -30,12 +30,12 @@ DEFAULT_PLACES = [
         "id": 100,
         "name": "Thao Nhien",
         "rating": 4.7,
-        "desc": "Bul'on navaristyy, govjadina tonkimi slajsami pryamo v piale — obvarivaetsya kipyatkom i taet. Zeleni dayut more: zelyonyj bazilik, salat i esche kakie-to travy — ne kinza. Rostki i lajm otdelno. Samoe to — soevyj sous + hojsin + svezhij chili sboku. Cena 39K za obychnyj fo bo — eto podarok za takoj obyom. Otkryvayutsya v 5:30 — idealno dlya teh, kto gulyaet na rassvete ili prosto hochet nachat den kak mestnyj.",
-        "tags": ["fo bo", "supy", "vetnamskaya kuhnya", "byudzhetno", "utrom"],
+        "desc": "Бульон наваристый, говядина тонкими слайсами прямо в пиале — обваривается кипятком и тает. Зелени дают море: зелёный базилик, салат и ещё какие-то травы — не кинза. Ростки и лайм отдельно. Самое то — соевый соус + хойсин + свежий чили сбоку. Цена 39K за обычный фо бо — это подарок за такой объём. Открываются в 5:30 — идеально для тех, кто гуляет на рассвете или просто хочет начать день как местный.",
+        "tags": ["фо бо", "супы", "вьетнамская кухня", "бюджетно", "утром"],
         "emoji": "\U0001F35C",
         "likes": 0,
         "comments": 0,
-        "address": "102 CT4 CC MUD XH 2, Duong Ngo Thi Kim, Nha Trang",
+        "address": "102 CT4 CC MUD XH 2, Đường Ngô Thị Kim, Nha Trang",
         "phone": "0972 558 044",
         "hours": "5:30 — 20:00",
         "addedBy": "BAYO"
@@ -83,7 +83,6 @@ def add_place():
     data.setdefault("places", []).append(new_place)
     save_data(data)
     return jsonify({"ok": True, "place": new_place})
-
 @app.route("/api/places/<int:place_id>/like", methods=["POST"])
 def like_place(place_id):
     data = load_data()
@@ -96,14 +95,12 @@ def like_place(place_id):
     if place is None:
         return jsonify({"error": "not found"}), 404
     place["likes"] = place.get("likes", 0) + 1
-    if "id" in [k for k in place.keys()]:
-        idx = next((i for i, p in enumerate(data["places"]) if p.get("id") == place_id), -1)
-        if idx >= 0:
-            data["places"][idx] = place
+    idx = next((i for i, p in enumerate(data["places"]) if p.get("id") == place_id), -1)
+    if idx >= 0:
+        data["places"][idx] = place
     save_data(data)
     return jsonify({"ok": True, "likes": place["likes"]})
-
-@app.route("/api/comments/<int:place_id>", methods=["GET"])
+    @app.route("/api/comments/<int:place_id>", methods=["GET"])
 def get_comments(place_id):
     data = load_data()
     comments = data.get("comments", {}).get(str(place_id), [])
@@ -138,11 +135,11 @@ def webhook():
         elif text == "/start":
             requests.get(f"https://api.telegram.org/bot{TOKEN}/sendMessage",
                 params={"chat_id": chat_id,
-                        "text": "Ukusy Nha Tranga — tvoj gid po vkusnoj ede Khanhhoa!\n\nNajdi luchshie kafe, dobav' svoi mesta, chitaj otzyvy.\n\nOtkroj prilozhenie cherez menyu -> Open Guide"})
+                        "text": "Укусы Нячанга — твой гид по вкусной еде Кханьхоа!\n\nНайди лучшие кафе, добавь свои места, читай отзывы.\n\nОткрой приложение через меню → Открыть Гид"})
         elif text == "/help":
             requests.get(f"https://api.telegram.org/bot{TOKEN}/sendMessage",
                 params={"chat_id": chat_id,
-                        "text": "Commands:\n/start — start\n/help — help\n/appss_verify — verify"})
+                        "text": "Команды:\n/start — начать\n/help — помощь\n/appss_verify — проверка"})
     return "ok"
 
 if __name__ == "__main__":
