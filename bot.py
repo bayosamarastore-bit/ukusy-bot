@@ -25,22 +25,6 @@ def save_data(data):
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
-DEFAULT_PLACES = [
-    {
-        "id": 100,
-        "name": "Thao Nhien",
-        "rating": 4.7,
-        "desc": "Бульон наваристый, говядина тонкими слайсами прямо в пиале — обваривается кипятком и тает. Зелени дают море: зелёный базилик, салат и ещё какие-то травы — не кинза. Ростки и лайм отдельно. Самое то — соевый соус + хойсин + свежий чили сбоку. Цена 39K за обычный фо бо — это подарок за такой объём. Открываются в 5:30 — идеально для тех, кто гуляет на рассвете или просто хочет начать день как местный.",
-        "tags": ["фо бо", "супы", "вьетнамская кухня", "бюджетно", "утром"],
-        "emoji": "\U0001F35C",
-        "likes": 0,
-        "comments": 0,
-        "address": "102 CT4 CC MUD XH 2, Đường Ngô Thị Kim, Nha Trang",
-        "phone": "0972 558 044",
-        "hours": "5:30 — 20:00",
-        "addedBy": "BAYO"
-    }
-]
 
 @app.route("/")
 def home():
@@ -53,8 +37,7 @@ def verify():
 @app.route("/api/places", methods=["GET"])
 def get_places():
     data = load_data()
-    places = DEFAULT_PLACES + data.get("places", [])
-    return jsonify({"places": places})
+    return jsonify({"places": data.get("places", [])})
 
 @app.route("/api/places", methods=["POST"])
 def add_place():
@@ -63,7 +46,7 @@ def add_place():
     if not name:
         return jsonify({"error": "name required"}), 400
     data = load_data()
-    new_id = max([p.get("id", 0) for p in data.get("places", [])] + [200]) + 1
+    new_id = max([p.get("id", 0) for p in data.get("places", [])] + [100]) + 1
     new_place = {
         "id": new_id,
         "name": name[:80],
@@ -88,11 +71,6 @@ def add_place():
 def like_place(place_id):
     data = load_data()
     place = next((p for p in data.get("places", []) if p.get("id") == place_id), None)
-    if place is None:
-        for p in DEFAULT_PLACES:
-            if p.get("id") == place_id:
-                place = p
-                break
     if place is None:
         return jsonify({"error": "not found"}), 404
     place["likes"] = place.get("likes", 0) + 1
