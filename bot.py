@@ -1,4 +1,32 @@
-import os
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ukusy-bot.py — копировалка</title>
+<style>
+body { font-family: ui-monospace, monospace; background: #0e0e10; color: #e0e0e0; margin: 0; padding: 24px; }
+h1 { color: #ff7a5c; font-size: 18px; margin: 0 0 16px; }
+.wrap { max-width: 880px; margin: 0 auto; }
+.bar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.bar button { background: #ff7a5c; color: #0e0e10; border: 0; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; }
+.bar button:hover { background: #ff9b82; }
+.bar .status { color: #6a6; font-size: 14px; }
+.bar .status.err { color: #d66; }
+pre { background: #16161a; padding: 20px; border-radius: 10px; overflow: auto; font-size: 13px; line-height: 1.5; border: 1px solid #2a2a30; }
+.tip { color: #888; font-size: 13px; margin: 12px 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>🐙 bot.py — код для ukusy-bot (с загрузкой фото)</h1>
+<div class="bar">
+<button onclick="copyAll()">📋 Скопировать всё</button>
+<button onclick="selectAll()">Выделить</button>
+<span id="status" class="status"></span>
+</div>
+<pre id="code">import os
 import json
 import threading
 import uuid
@@ -43,7 +71,7 @@ def verify():
     return "appss_98ec27"
 
 
-@app.route("/uploads/")
+@app.route("/uploads/<path:filename>")
 def serve_upload(filename):
     return send_from_directory(UPLOAD_DIR, filename)
 
@@ -100,7 +128,7 @@ def add_place():
     return jsonify({"ok": True, "place": new_place})
 
 
-@app.route("/api/places//like", methods=["POST"])
+@app.route("/api/places/<int:place_id>/like", methods=["POST"])
 def like_place(place_id):
     data = load_data()
     places = data.get("places", [])
@@ -112,14 +140,14 @@ def like_place(place_id):
     return jsonify({"ok": True, "likes": place["likes"]})
 
 
-@app.route("/api/comments/", methods=["GET"])
+@app.route("/api/comments/<int:place_id>", methods=["GET"])
 def get_comments(place_id):
     data = load_data()
     comments = data.get("comments", {}).get(str(place_id), [])
     return jsonify({"comments": comments})
 
 
-@app.route("/api/comments/", methods=["POST"])
+@app.route("/api/comments/<int:place_id>", methods=["POST"])
 def add_comment(place_id):
     payload = request.get_json() or {}
     text = (payload.get("text") or "").strip()
@@ -158,3 +186,30 @@ def webhook():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+</pre>
+<p class="tip">Открой в браузере на ПК → 📋 Скопировать всё → в GitHub замени содержимое bot.py → Commit changes → Manual Deploy.</p>
+</div>
+<script>
+function copyAll() {
+  const code = document.getElementById('code').innerText;
+  navigator.clipboard.writeText(code).then(() => {
+    const s = document.getElementById('status');
+    s.textContent = '✅ Скопировано!';
+    s.classList.remove('err');
+  }, () => {
+    const s = document.getElementById('status');
+    s.textContent = '❌ Не вышло. Тыкни «Выделить» и Ctrl+C.';
+    s.classList.add('err');
+  });
+}
+function selectAll() {
+  const r = document.createRange();
+  r.selectNodeContents(document.getElementById('code'));
+  const s = window.getSelection();
+  s.removeAllRanges();
+  s.addRange(r);
+}
+</script>
+<script src="https://p.spru.io/badge.js" data-site="7e401a" defer></script>
+</body>
+</html>
