@@ -4,8 +4,10 @@ import threading
 import uuid
 import requests
 from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 TOKEN = os.environ.get("TOKEN")
 
 DATA_DIR = "/tmp/ukusy_data"
@@ -38,7 +40,15 @@ def save_data(data):
             json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-@app.route("/")
+@app.after_request
+def add_cors(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return response
+
+
+@app.route("/", methods=["GET", "OPTIONS"])
 def home():
     return "Ukusy backend is alive!"
 
@@ -53,7 +63,7 @@ def serve_upload(filename):
     return send_from_directory(UPLOAD_DIR, filename)
 
 
-@app.route("/api/upload", methods=["POST"])
+@app.route("/api/upload", methods=["POST", "OPTIONS"])
 def upload():
     if "file" not in request.files:
         return jsonify({"ok": False, "error": "no file"}), 400
@@ -69,13 +79,13 @@ def upload():
     return jsonify({"ok": True, "url": url, "filename": name})
 
 
-@app.route("/api/places", methods=["GET"])
+@app.route("/api/places", methods=["GET", "OPTIONS"])
 def get_places():
     data = load_data()
     return jsonify({"places": data.get("places", [])})
 
 
-@app.route("/api/places", methods=["POST"])
+@app.route("/api/places", methods=["POST", "OPTIONS"])
 def add_place():
     payload = request.get_json() or {}
     name = (payload.get("name") or "").strip()
@@ -105,7 +115,7 @@ def add_place():
     return jsonify({"ok": True, "place": new_place})
 
 
-@app.route("/api/places/<int:place_id>/like", methods=["POST"])
+@app.route("/api/places/<int:place_id>/like", methods=["POST", "OPTIONS"])
 def like_place(place_id):
     data = load_data()
     place = next((p for p in data.get("places", []) if p.get("id") == place_id), None)
@@ -119,14 +129,14 @@ def like_place(place_id):
     return jsonify({"ok": True, "likes": place["likes"]})
 
 
-@app.route("/api/comments/<int:place_id>", methods=["GET"])
+@app.route("/api/comments/<int:place_id>", methods=["GET", "OPTIONS"])
 def get_comments(place_id):
     data = load_data()
     comments = data.get("comments", {}).get(str(place_id), [])
     return jsonify({"comments": comments})
 
 
-@app.route("/api/comments/<int:place_id>", methods=["POST"])
+@app.route("/api/comments/<int:place_id>", methods=["POST", "OPTIONS"])
 def add_comment(place_id):
     payload = request.get_json() or {}
     text = (payload.get("text") or "").strip()
