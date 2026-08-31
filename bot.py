@@ -10,15 +10,29 @@ app = Flask(__name__)
 CORS(app)
 TOKEN = os.environ.get("TOKEN")
 
-DATA_DIR = "/tmp/ukusy_data"
+
+def _setup_dirs():
+    """Выбираем доступную папку: /var/data (Render Disk) или /tmp (fallback)."""
+    for d in ("/var/data", "/tmp"):
+        try:
+            os.makedirs(d, exist_ok=True)
+            # Проверим что можем писать
+            test = os.path.join(d, ".ukusy_write_test")
+            with open(test, "w") as f:
+                f.write("ok")
+            os.remove(test)
+            return d
+        except (PermissionError, OSError):
+            continue
+    raise RuntimeError("No writable directory found")
+
+
+_DATA_ROOT = _setup_dirs()
+DATA_DIR = os.path.join(_DATA_ROOT, "ukusy_data")
 DATA_FILE = os.path.join(DATA_DIR, "data.json")
 UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
-
-try:
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-except PermissionError:
-    UPLOAD_DIR = "/tmp/ukusy_uploads"
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+print(f"Using DATA_DIR={DATA_DIR}, UPLOAD_DIR={UPLOAD_DIR}", flush=True)
 
 _lock = threading.Lock()
 
@@ -107,7 +121,6 @@ def upload():
 def get_places():
     data = load_data()
     places = data.get("places", [])
-    # Встраиваем локальные фото как base64 — обход CSP Telegram WebApp
     for p in places:
         try:
             if p.get("photo"):
