@@ -40,6 +40,30 @@ def save_data(data):
             json.dump(data, f, ensure_ascii=False, indent=2)
 
 
+def _encode_photo_as_base64(photo_url):
+    """Если photo — локальный uploads URL, загрузить и вернуть data:image/...;base64,..."""
+    if not photo_url or not isinstance(photo_url, str):
+        return photo_url
+    if photo_url.startswith("data:"):
+        return photo_url
+    if not photo_url.startswith("/uploads/"):
+        return photo_url
+    fname = photo_url.replace("/uploads/", "")
+    path = os.path.join(UPLOAD_DIR, fname)
+    if not os.path.exists(path):
+        return photo_url
+    try:
+        import base64
+        ext = os.path.splitext(fname)[1].lower().lstrip('.') or 'jpeg'
+        if ext == 'jpg': ext = 'jpeg'
+        with open(path, 'rb') as f:
+            b64 = base64.b64encode(f.read()).decode('ascii')
+        return f"data:image/{ext};base64,{b64}"
+    except Exception as e:
+        print("base64 encode failed:", e)
+        return photo_url
+
+
 @app.after_request
 def add_cors(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
@@ -82,7 +106,17 @@ def upload():
 @app.route("/api/places", methods=["GET", "OPTIONS"])
 def get_places():
     data = load_data()
-    return jsonify({"places": data.get("places", [])})
+    places = data.get("places", [])
+    # Встраиваем локальные фото как base64 — обход CSP Telegram WebApp
+    for p in places:
+        try:
+            if p.get("photo"):
+                p["photo"] = _encode_photo_as_base64(p["photo"])
+            if p.get("photos"):
+                p["photos"] = [_encode_photo_as_base64(u) for u in p["photos"]]
+        except Exception as e:
+            print("encode photo failed:", e)
+    return jsonify({"places": places})
 
 
 @app.route("/api/places", methods=["POST", "OPTIONS"])
