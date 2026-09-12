@@ -74,10 +74,14 @@ def tg_api(method, **params):
 
 
 def send(chat_id, text, reply_markup=None):
+    log.info(f"send to {chat_id}: {text[:60]}")
     params = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
     if reply_markup:
         params["reply_markup"] = json.dumps(reply_markup)
-    return tg_api("sendMessage", **params)
+    r = tg_api("sendMessage", **params)
+    if not r or not r.get("ok"):
+        log.error(f"send FAILED to {chat_id}: {r}")
+    return r
 
 
 def forward_to_channel(file_id, caption):
@@ -182,16 +186,34 @@ def handle_photo(message):
     user_id = message["from"]["id"]
     user_name = message.get("from", {}).get("first_name", "Гость")
     photos = message.get("photo", [])
+    log.info(f"handle_photo from user_id={user_id} name={user_name}")
     if not photos:
+        log.warning("handle_photo: no photos in message")
         return
     file_id = photos[-1]["file_id"]
     caption = message.get("caption", "")
 
+    # Если нет ADMIN_ID — фото сразу в канал (без модерации)
     if not ADMIN_ID:
-        send(user_id, "⚠️ Модерация временно недоступна. Попробуй позже.")
+        log.warning("ADMIN_ID not set, sending directly to channel")
+        result = forward_to_channel(file_id, caption or f"от {user_name}")
+        if result:
+            send(user_id, "✅ Фото опубликовано в ленте Укусов Нячанга!")
+        else:
+            send(user_id, "⚠️ Ошибка публикации. Попробуй позже.")
         return
 
-    send(
+    # Сначала шлём фото админу (он увидит его в чате)
+    log.info(f"sending photo to admin {ADMIN_ID}")
+    photo_resp = requests.post(
+        f"https://api.telegram.org/bot{TOKEN}/sendPhoto",
+        data={"chat_id": ADMIN_ID, "photo": file_id, "caption": f"📸 Новое фото от {user_name} (id {user_id})\n{caption or 'без подписи'}"},
+        timeout=15,
+    )
+    log.info(f"admin photo response: {photo_resp.status_code}")
+    
+    # Затем шлём кнопки
+    msg_resp = send(
         ADMIN_ID,
         f"📸 Новое фото на модерацию\n\n"
         f"От: {user_name} (id {user_id})\n"
@@ -206,11 +228,8 @@ def handle_photo(message):
             ]
         },
     )
-    requests.post(
-        f"https://api.telegram.org/bot{TOKEN}/sendPhoto",
-        data={"chat_id": ADMIN_ID, "photo": file_id, "caption": f"от {user_name}: {caption or 'без подписи'}"},
-        timeout=15,
-    )
+    log.info(f"admin button message response: {msg_resp}")
+    
     send(user_id, "✅ Фото принято на модерацию! Обычно проверяем в течение дня.")
 
 
