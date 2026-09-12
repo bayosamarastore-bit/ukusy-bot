@@ -212,7 +212,13 @@ def handle_photo(message):
     )
     log.info(f"admin photo response: {photo_resp.status_code}")
     
-    # Затем шлём кнопки
+    # Генерируем короткий ключ и сохраняем в памяти
+    import secrets
+    short_id = secrets.token_urlsafe(6)[:8]
+    with _lock:
+        _pending[short_id] = {"user_id": user_id, "file_id": file_id, "name": user_name, "caption": caption}
+    
+    # Затем шлём кнопки с короткими callback_data
     msg_resp = send(
         ADMIN_ID,
         f"📸 Новое фото на модерацию\n\n"
@@ -222,8 +228,8 @@ def handle_photo(message):
         reply_markup={
             "inline_keyboard": [
                 [
-                    {"text": "✅ Одобрить", "callback_data": f"approve:{user_id}:{file_id}"},
-                    {"text": "❌ Отклонить", "callback_data": f"reject:{user_id}"}
+                    {"text": "✅ Одобрить", "callback_data": f"a:{short_id}"},
+                    {"text": "❌ Отклонить", "callback_data": f"r:{short_id}"}
                 ]
             ]
         },
@@ -236,29 +242,41 @@ def handle_photo(message):
 def handle_callback(callback):
     data = callback.get("data", "")
     admin_id = callback["from"]["id"]
+    log.info(f"callback from {admin_id}: {data}")
     if admin_id != ADMIN_ID:
+        log.warning(f"callback from non-admin {admin_id}, ignoring")
         return
 
-    if data.startswith("approve:"):
-        _, user_id, file_id = data.split(":", 2)
-        user_id = int(user_id)
-        channel_file_id = forward_to_channel(file_id, f"от пользователя {user_id}")
-        if channel_file_id:
-            send(user_id, "🎉 Твоё фото одобрено! Теперь оно в ленте Укусов Нячанга.")
-            send(ADMIN_ID, f"✅ Фото одобрено и залито в канал (id {PHOTO_CHANNEL}).")
-            with _lock:
-                _approved_inmem.append({
-                    "file_id": channel_file_id,
-                    "user_id": user_id,
-                    "ts": __import__("time").time(),
-                })
-        else:
-            send(ADMIN_ID, "⚠️ Ошибка при загрузке в канал. Проверь, что бот — админ канала.")
+    if data.startswith(("a:", "r:")):
+        action, short_id = data.split(":", 1)
+        with _lock:
+            pending = _pending.pop(short_id, None)
+        if not pending:
+            send(ADMIN_ID, "⚠️ Фото не найдено (возможно уже обработано).")
+            return
+        user_id = pending["user_id"]
+        user_name = pending["name"]
+        file_id = pending["file_id"]
+        caption = pending["caption"]
 
-    elif data.startswith("reject:"):
-        _, user_id = data.split(":", 1)
-        send(int(user_id), "😔 К сожалению, твоё фото не прошло модерацию.")
-        send(ADMIN_ID, "❌ Фото отклонено.")
+        if action == "a:":
+            log.info(f"approving photo {short_id} from {user_id}")
+            channel_file_id = forward_to_channel(file_id, caption or f"от {user_name}")
+            if channel_file_id:
+                send(user_id, "🎉 Твоё фото одобрено! Теперь оно в ленте Укусов Нячанга.")
+                send(ADMIN_ID, f"✅ Фото одобрено и залито в канал (id {PHOTO_CHANNEL}).")
+                with _lock:
+                    _approved_inmem.append({
+                        "file_id": channel_file_id,
+                        "user_id": user_id,
+                        "ts": __import__("time").time(),
+                    })
+            else:
+                send(ADMIN_ID, "⚠️ Ошибка при загрузке в канал. Проверь, что бот — админ канала.")
+        else:
+            log.info(f"rejecting photo {short_id} from {user_id}")
+            send(user_id, "😔 К сожалению, твоё фото не прошло модерацию.")
+            send(ADMIN_ID, f"❌ Фото отклонено (от {user_name}).")
 
 
 def setup_webhook():
