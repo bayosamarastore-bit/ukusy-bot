@@ -324,7 +324,7 @@ def about(chat_id, message_id=None, cb_id=None):
 
 
 # ===== Обработка входящих =====
-@app.route(f"/{TOKEN}", methods=["POST"])
+@app.route("/webhook", methods=["POST"])
 def webhook():
     update = request.get_json(force=True, silent=True) or {}
 
